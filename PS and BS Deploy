@@ -1,3 +1,5 @@
+### The batch scripts, kicked off by this script, contain the actual msi one-liner to do the installation
+
 $Folder = 'C:\util'
 $File = 'D:\Scripts\At_Bay\WindowsSensor.MaverickGyr.exe'
 $File2 = 'D:\Scripts\At_Bay\AIR.Agent_2.35.1_at-bay.binalyze.io_28_93e37454cc4a48fc_amd64_.msi'
