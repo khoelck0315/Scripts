@@ -1,0 +1,42 @@
+$PCs = Get-Content -Path 'D:\Scripts\At_Bay\PCList2.txt'
+$cred = Get-Credential corporate\a-stolm
+
+Start-Transcript -path D:\Scripts\At_Bay\Installed.txt -append
+
+ForEach ($PC in $PCs) {
+
+$alive = Test-NetConnection $PC
+
+if ($alive.Pingsucceeded -eq $False) {
+}
+else {
+
+$CrowdStrike = 'Not Running'
+$Binalyze = 'Not Running'
+
+$s = New-PSSession -computerName $PC -credential $cred
+Invoke-Command -Session $s -Scriptblock {Invoke-Expression -Command:"Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Force"}
+
+Invoke-Command -Session $s -Scriptblock {hostname}
+$CrowdStrike = Invoke-Command -Session $s -Scriptblock {Get-Service -Displayname 'CrowdStrike Falcon Sensor Service' -erroraction 'silentlycontinue'}
+$Binalyze = Invoke-Command -Session $s -Scriptblock {Get-Service -Displayname 'Binalyze AIR Agent Service' -erroraction 'silentlycontinue'}
+
+if ($Crowdstrike -eq $NULL) {
+'Crowdstrike: Not Running'
+'Binalyze: Not Running'
+}
+else {
+
+$CrowdStrike = $CrowdStrike.Status
+$Binalyze = $Binalyze.Status
+
+'Crowdstrike: ' + $Crowdstrike
+'Binalyze: ' + $Binalyze
+}
+
+
+Remove-PSSession $s
+""
+}
+}
+Stop-Transcipt
