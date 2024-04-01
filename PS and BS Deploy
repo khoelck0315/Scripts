@@ -1,0 +1,197 @@
+$Folder = 'C:\util'
+$File = 'D:\Scripts\At_Bay\WindowsSensor.MaverickGyr.exe'
+$File2 = 'D:\Scripts\At_Bay\AIR.Agent_2.35.1_at-bay.binalyze.io_28_93e37454cc4a48fc_amd64_.msi'
+$Destination = 'C:\util\WindowsSensor.MaverickGyr.exe'
+$Destination2 = 'c:\util\AIR.Agent_2.35.1_at-bay.binalyze.io_28_93e37454cc4a48fc_amd64_.msi'
+$PCs = Get-Content -Path 'D:\Scripts\At_Bay\PCList.txt'
+$Present = 'False'
+$Present2 = 'False'
+$PresentBat = 'False'
+$PresentBat2 = 'False'
+$cred = Get-Credential corporate\a-stolm
+
+Set-item wsman:localhost\client\trustedhosts -value * -Force
+
+Start-Transcript -path D:\Scripts\At_Bay\Output.txt -append
+
+ForEach ($PC in $PCs) {
+
+$CSRunning = ''
+$BSRunning = ''
+$Hostname = ''
+$alive = Test-NetConnection $PC
+
+if ($alive.Pingsucceeded -eq $False) {
+}
+else {
+$s = New-PSSession -computerName $PC -credential $cred -erroraction 'silentlycontinue'
+
+Invoke-Command -Session $s -Scriptblock {Invoke-Expression -Command:"Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Force"}  -erroraction 'silentlycontinue'
+
+$Hostname = Invoke-Command -Session $s -Scriptblock {hostname}
+
+$CSRunning = Invoke-Command -Session $s -Scriptblock {Get-Service -Displayname 'CrowdStrike Falcon Sensor Service'} -erroraction 'silentlycontinue'
+$BRunning = Invoke-Command -Session $s -Scriptblock {Get-Service -Displayname 'Binalyze AIR Agent Service'}  -erroraction 'silentlycontinue'
+
+$Hostname
+'CrowdStrike Status: ' + $CSRunning.Status
+'Binalyze Status: ' + $BRunning.Status
+}
+
+if( ($CSRunning.Status -eq 'Running' -and $BRunning.Status -eq 'Running') -or $Hostname -eq '' ) {
+"Already Installed or no PC at " + $PC
+}
+else {
+
+Remove-PSSession $s -erroraction 'silentlycontinue'
+
+#### Create C:\util if it does not exist already
+
+if (Test-Path -Path \\$PC\C$\Util) {
+    "C:\Util Already Exists on " + $PC
+}
+else {
+    New-Item \\$PC\C$\Util -Type Directory -erroraction 'silentlycontinue'
+    "Created C:\Util on " + $PC
+}
+
+#######################Check if Binalyze is already installed, if so do nothing
+
+if ($CSRunning.Status -eq 'Running') {
+}
+else {
+
+####Check for presence of CrowdStrike, if not present copy it to PC
+
+if (Test-Path -Path \\$PC\C$\Util\WindowsSensor.MaverickGyr.exe) {
+"CrowdStrike Installer already exists on " + $PC
+$Present = 'True'
+}
+else {
+Copy-Item -Path 'D:\Scripts\At_Bay\WindowsSensor.MaverickGyr.exe' -Destination \\$PC\C$\Util\WindowsSensor.MaverickGyr.exe -erroraction 'silentlycontinue'
+}
+
+####Check for presence of Crowdstrike after copy operation
+
+if ((Test-Path -Path \\$PC\C$\Util\WindowsSensor.MaverickGyr.exe) -and ($Present -eq 'False')) {
+"CrowdStrike Installer Copied to " + $PC
+}
+else {
+}
+
+if (Test-Path -Path \\$PC\C$\Util\WindowsSensor.MaverickGyr.exe) {
+}
+else {
+"CrowdStrike Installer Copy FAILED for " + $PC +  "."
+}
+
+####Check for presence of Crowdstrike BAT Script, if not present copy it
+
+if (Test-Path -Path \\$PC\C$\Util\CrowdStrikeInstall.bat) {
+"Crowdstrike bat already exists on " + $PC
+$PresentBat = 'True'
+}
+else {
+Copy-Item -Path 'D:\Scripts\At_Bay\CrowdStrikeInstall.bat' -Destination \\$PC\C$\Util\CrowdStrikeInstall.bat -erroraction 'silentlycontinue'
+}
+
+if ((Test-Path -Path \\$PC\C$\Util\CrowdStrikeInstall.bat) -and ($PresentBat -eq 'False')) {
+"File Copied to " + $PC
+}
+else {
+}
+
+####Install Crowdstrike if the copy was successful
+
+if (Test-Path -Path \\$PC\C$\Util\CrowdStrikeInstall.bat) {
+"Starting CrowdStrike Install on " + $PC
+
+$s = New-PSSession -computerName $PC -credential $cred -erroraction 'silentlycontinue'
+Invoke-Command -Session $s -Scriptblock { Invoke-Expression -Command:"cmd.exe /c 'c:\Util\CrowdStrikeInstall.bat'" } -erroraction 'silentlycontinue' 
+Remove-PSSession $s -erroraction 'silentlycontinue'
+
+"Completed CrowdStrike Install on " + $PC
+}
+else {
+"CrowdStrike Install BAT file copy FAILED for " + $PC +  ". Did not install CrowdStrike."
+}
+
+"---------------------"
+}
+
+#######################Check if Binalyze is already installed, if so do nothing
+
+if ($BRunning.Status -eq 'Running') {
+}
+else {
+
+####Check for presence of Binalyze, if not present copy it to PC
+
+if (Test-Path -Path \\$PC\C$\Util\AIR.Agent_2.35.1_at-bay.binalyze.io_28_93e37454cc4a48fc_amd64_.msi) {
+"Binalyze Installer already exists on " + $PC
+$Present2 = 'True'
+}
+else {
+Copy-Item -Path 'D:\Scripts\At_Bay\AIR.Agent_2.35.1_at-bay.binalyze.io_28_93e37454cc4a48fc_amd64_.msi' -Destination \\$PC\C$\Util\AIR.Agent_2.35.1_at-bay.binalyze.io_28_93e37454cc4a48fc_amd64_.msi -erroraction 'silentlycontinue'
+}
+
+
+
+#####Check for presence of Binalyze after copy operation
+
+if ((Test-Path -Path \\$PC\C$\Util\AIR.Agent_2.35.1_at-bay.binalyze.io_28_93e37454cc4a48fc_amd64_.msi) -and ($Present2 -eq 'False')) {
+"Binalyze Installer Copied to " + $PC
+}
+else {
+}
+
+if (Test-Path -Path \\$PC\C$\Util\AIR.Agent_2.35.1_at-bay.binalyze.io_28_93e37454cc4a48fc_amd64_.msi) {
+}
+else {
+"Binalyze Installer Copy FAILED for " + $PC +  "."
+}
+
+
+
+####Check for presence of Binalyze BAT Script, if not present copy it
+
+if (Test-Path -Path \\$PC\C$\Util\BinalyzeInstall.bat) {
+"Crowdstrike bat already exists on " + $PC
+$PresentBat = 'True'
+}
+else {
+Copy-Item -Path 'D:\Scripts\At_Bay\BinalyzeInstall.bat' -Destination \\$PC\C$\Util\BinalyzeInstall.bat -erroraction 'silentlycontinue'
+}
+
+if ((Test-Path -Path \\$PC\C$\Util\BinalyzeInstall.bat) -and ($PresentBat -eq 'False')) {
+"File Copied to " + $PC
+}
+else {
+}
+
+####Install Binalyze if the copy was successful
+
+if (Test-Path -Path \\$PC\C$\Util\BinalyzeInstall.bat) {
+"Starting Binalyze Install on " + $PC
+
+$s = New-PSSession -computerName $PC -credential $cred -erroraction 'silentlycontinue'
+Invoke-Command -Session $s -Scriptblock { Invoke-Expression -Command:"cmd.exe /c 'c:\Util\BinalyzeInstall.bat'" } -erroraction 'silentlycontinue'
+Remove-PSSession $s -erroraction 'silentlycontinue'
+
+"Completed Binalyze Install on " + $PC
+}
+else {
+"Binalyze Install BAT file copy FAILED for " + $PC +  ". Did not install Binalyze."
+}
+
+"---------------------"
+}
+
+$Present = 'False'
+$Present2 = 'False'
+$PresentBat = 'False'
+$PresentBat2 = 'False'
+
+}
+}
+Stop-Transcript
